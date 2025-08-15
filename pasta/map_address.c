@@ -1,0 +1,71 @@
+#include <stdio.h>
+#include "esp_err.h"
+#include "driver/i2c.h"
+#include "driver/i2c_master.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+
+//Definição de pinos 
+#define sda_port  21
+#define scl_port  22
+
+//Definição das características do mestre
+#define pullup 1
+#define talk_freq 100000
+#define master_port 0
+#define buffer_tx 0
+#define buffer_rx 0
+
+#define   addres_reg 0x07    // Registrador que armazena a temperatura objeto em cada um dos sensores
+
+//Configuração do mestre do barramento (este esp32) (pronto pra se comunicar após ela)
+void i2c_master_config_init(){
+    i2c_config_t setup = {
+         .mode = I2C_MODE_MASTER,
+         .sda_io_num = sda_port,
+         .scl_io_num = scl_port,
+         .sda_pullup_en = GPIO_PULLUP_DISABLE,
+         .scl_pullup_en = GPIO_PULLUP_DISABLE,
+        .master.clk_speed = talk_freq,
+        .clk_flags = 0,  
+    };
+
+    i2c_param_config(master_port,&setup);
+
+    i2c_driver_install(master_port,setup.mode,buffer_rx,buffer_tx,0);
+
+}
+
+//Função que vasculha os endereços da rede 
+void find_add(){
+
+    uint8_t reg=addres_reg;
+    uint16_t temp_bruta;
+    uint8_t data[3]; //2 bytes de dados e 1 de crc (sensor tem conversor ADC de 17bits!)
+
+    for(int i=1;i<128;i++){
+     esp_err_t reading = i2c_master_write_read_device( //Read write chama sensor e pega dados instantâneamente
+        master_port, //Porta do mestre
+        i, //Endereço do dispositivo -> iremos iterar sobre os valores de 1 a 127 (números disponíveis de endereço, exceto o 0 que é global)
+        &reg, //Endereço do registrador
+        sizeof(reg),
+        data, //Armazenamento de dados lidos mas que são inutilizados nesse contexto
+        3, //Numero de bytes lidos
+        1000/portTICK_PERIOD_MS); //Frequência de leitura
+
+        if(reading == ESP_OK){ //Ideia boa do nosso amigo 
+            printf("Endereco disponível no barramento: %0xd\n",i); //Exibição de endereço em hexadecimal
+        } 
+    }
+}
+
+
+
+void app_main(void){
+    
+    uint8_t add;
+    i2c_master_config_init(); //Configuração do esp como mestre no barramento 
+    find_add(); //Procura de endereços no barramento
+    
+}
