@@ -1,2 +1,2 @@
 # testing
-Rep de teste, vai ser apagado
+Repositório de teste, vai ser apagado
